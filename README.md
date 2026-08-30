@@ -1,6 +1,16 @@
 # NASA Engine RUL MLOps Project
 
-This project implements a production-grade MLOps setup around the NASA turbofan engine remaining useful life (RUL) prediction problem. It includes a model training pipeline, automated validation, Docker packaging, MLflow experiment tracking, and a DVC pipeline definition.
+This project implements an MLOps workflow for predicting remaining useful life (RUL) for NASA turbofan engines. It includes data validation, feature engineering, XGBoost training, MLflow tracking, DVC reproducibility, a FastAPI inference service, Docker packaging, and Kubernetes deployment manifests.
+
+## Quick start
+
+```bash
+python -m pip install -r requirements.txt
+python -m dvc repro
+uvicorn src.api.app:app --host 0.0.0.0 --port 8000
+```
+
+The API is available at `http://localhost:8000`. Open `http://localhost:8000/docs` for interactive API documentation.
 
 ## Project structure
 
@@ -78,13 +88,72 @@ The API is exposed on `http://localhost:8000` and MLflow on `http://localhost:50
 
 ## CI/CD
 
-GitHub Actions automatically installs dependencies, runs unit tests, reproduces the DVC pipeline, and validates the pipeline definition for every push and pull request. The workflows also build and publish the API image to GHCR on pushes, validate Kubernetes manifests, and deploy tagged releases when the `KUBE_CONFIG` repository secret is configured.
+GitHub Actions automatically installs dependencies, runs unit tests, reproduces the DVC pipeline, and validates the pipeline definition for every push and pull request. The workflows also build and publish the API image to Docker Hub on pushes, validate Kubernetes manifests, and deploy tagged releases when the `KUBE_CONFIG` repository secret is configured.
 
 - `.github/workflows/ci.yml` — tests and `dvc repro`
 - `.github/workflows/docker-build.yml` — DVC reproduction and Docker build/publish
 - `.github/workflows/deploy_svc.yml` — Kubernetes manifest validation
 - `.github/workflows/kubectl-deploy.yml` — Kubernetes deployment
 - `deploy.yml` and `deploy_svc.yml` — API deployment and service manifests
+
+## Kubernetes deployment
+
+The root-level manifests deploy the Docker Hub image `clumumba62/nasa_rul:v1`:
+
+- `deploy.yml` — two API replicas with CPU and memory requests/limits
+- `deploy_svc.yml` — `NodePort` service on port `30080`
+
+Confirm that `kubectl` is installed and connected to the target cluster:
+
+```bash
+kubectl config current-context
+kubectl cluster-info
+```
+
+Apply the deployment and service:
+
+```bash
+kubectl apply -f deploy.yml
+kubectl apply -f deploy_svc.yml
+```
+
+Verify the rollout and resources:
+
+```bash
+kubectl rollout status deployment/nasa-rul-deployment
+kubectl get deployments,pods,services -l app=nasa_rul
+kubectl describe service nasa-rul-service
+```
+
+The service uses `NodePort` `30080`. For Minikube, get the service URL with:
+
+```bash
+minikube service nasa-rul-service --url
+```
+
+For another cluster, call the health endpoint at `<node-ip>:30080`:
+
+```bash
+curl http://<node-ip>:30080/health
+```
+
+Remove the resources when finished:
+
+```bash
+kubectl delete -f deploy_svc.yml
+kubectl delete -f deploy.yml
+```
+
+### Kubernetes deployment through GitHub Actions
+
+The deployment workflow runs for version tags such as `v1.0.0` or manually through `workflow_dispatch`. Add a repository secret named `KUBE_CONFIG` containing the target cluster kubeconfig:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The Docker workflow publishes `clumumba62/nasa_rul:v1`. The `docker-login` GitHub secret must contain a Docker Hub access token or password.
 
 ## Example prediction payload
 
