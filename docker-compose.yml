@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nasa-rul-api
+    ports:
+      - "8000:8000"
+    environment:
+      - MODEL_PATH=/app/artifacts/fd001_model.joblib
+      - MLFLOW_TRACKING_URI=file:///app/mlruns
+    volumes:
+      - .:/app
+    command: uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.14.1
+    container_name: nasa-mlflow
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --default-artifact-root /mlflow/artifacts
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlflow:/mlflow

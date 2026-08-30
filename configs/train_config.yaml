@@ -1,0 +1,6 @@
+dataset: FD001
+max_rul: 130
+test_size: 0.2
+random_state: 42
+feature_window: 5
+output_dir: artifacts

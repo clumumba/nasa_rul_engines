@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nasa-rul-deployment
+  labels:
+    app: nasa_rul
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nasa_rul
+  template:
+    metadata:
+      labels:
+        app: nasa_rul
+    spec:
+      containers:
+      - name: nasa
+        image: clumumba62/nasa_rul:v1
+        ports:
+        - containerPort: 8000
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"

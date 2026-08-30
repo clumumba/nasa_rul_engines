@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nasa-rul-service
+  labels:
+    app: nasa_rul
+spec:
+  type: NodePort
+  selector:
+    app: nasa_rul
+  ports:
+    - protocol: TCP
+      port: 8000         # The port accessible outside the cluster
+      targetPort: 8000 # The port your container is listening on
+      nodePort: 30080

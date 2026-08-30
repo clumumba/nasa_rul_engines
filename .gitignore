@@ -1,0 +1,15 @@
+__pycache__/
+.pytest_cache/
+*.py[cod]
+*.pkl
+*.joblib
+.venv/
+.nasa/
+.vscode/
+mlruns/
+.dvc/cache/
+.dvc/tmp/
+.env
+.DS_Store
+coverage.xml
+htmlcov/
