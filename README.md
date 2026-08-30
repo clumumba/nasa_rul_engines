@@ -78,7 +78,13 @@ The API is exposed on `http://localhost:8000` and MLflow on `http://localhost:50
 
 ## CI/CD
 
-GitHub Actions automatically installs dependencies and runs unit tests for every push and pull request. The workflow is defined in `.github/workflows/ci.yml`.
+GitHub Actions automatically installs dependencies, runs unit tests, reproduces the DVC pipeline, and validates the pipeline definition for every push and pull request. The workflows also build and publish the API image to GHCR on pushes, validate Kubernetes manifests, and deploy tagged releases when the `KUBE_CONFIG` repository secret is configured.
+
+- `.github/workflows/ci.yml` — tests and `dvc repro`
+- `.github/workflows/docker-build.yml` — DVC reproduction and Docker build/publish
+- `.github/workflows/deploy_svc.yml` — Kubernetes manifest validation
+- `.github/workflows/kubectl-deploy.yml` — Kubernetes deployment
+- `deploy.yml` and `deploy_svc.yml` — API deployment and service manifests
 
 ## Example prediction payload
 

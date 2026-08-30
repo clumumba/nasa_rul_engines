@@ -35,7 +35,7 @@ stages:
 
   serve_model:
     cmd: >-
-      python -c "from pathlib import Path; import json, yaml; model_path = Path('artifacts/fd001_model.joblib'); assert model_path.exists(), 'Model artifact is missing'; config_path = Path('configs/inference_config.yaml'); config = yaml.safe_load(config_path.read_text(encoding='utf-8')) or {}; config.update({'model_path': 'artifacts/fd001_model.joblib', 'host': config.get('host', '0.0.0.0'), 'port': config.get('port', 8000)}); config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding='utf-8'); manifest = {'service': 'fastapi', 'model_path': 'artifacts/fd001_model.joblib', 'health_check': '/health', 'prediction_endpoint': '/predict'}; Path('artifacts/serving_manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')"
+      python -c "from pathlib import Path; import json, yaml; model_path = Path('artifacts/fd001_model.joblib'); assert model_path.exists(), 'Model artifact is missing'; config = yaml.safe_load(Path('configs/inference_config.yaml').read_text(encoding='utf-8')) or {}; manifest = {'service': 'fastapi', 'model_path': config.get('model_path', 'artifacts/fd001_model.joblib'), 'host': config.get('host', '0.0.0.0'), 'port': config.get('port', 8000), 'health_check': '/health', 'prediction_endpoint': '/predict'}; Path('artifacts/serving_manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')"
     deps:
       - src
       - artifacts/fd001_model.joblib

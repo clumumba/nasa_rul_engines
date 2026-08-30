@@ -1,0 +1,34 @@
+name: Kubernetes deploy
+
+on:
+  workflow_dispatch:
+  push:
+    tags: [ "v*" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure cluster credentials
+        shell: bash
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          test -n "$KUBE_CONFIG"
+          mkdir -p "$HOME/.kube"
+          printf '%s' "$KUBE_CONFIG" > "$HOME/.kube/config"
+
+      - name: Apply deployment and service
+        run: |
+          kubectl apply --filename deploy.yml
+          kubectl apply --filename deploy_svc.yml
+          kubectl rollout status deployment/nasa-rul-deployment --timeout=180s

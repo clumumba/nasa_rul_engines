@@ -1,0 +1,23 @@
+name: Kubernetes service validation
+
+on:
+  pull_request:
+    paths:
+      - "deploy.yml"
+      - "deploy_svc.yml"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Validate Kubernetes manifests
+        run: |
+          kubectl apply --dry-run=client --filename deploy.yml
+          kubectl apply --dry-run=client --filename deploy_svc.yml

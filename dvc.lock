@@ -18,7 +18,7 @@ stages:
       nfiles: 13
     - path: src
       hash: md5
-      md5: 2aa47485a3a81ffda15286d64510c62f.dir
+      md5: c4b04a4b9b42c4317f0fdeb407a68edf.dir
       size: 63892
       nfiles: 47
     params:
@@ -48,7 +48,7 @@ stages:
       size: 3416731
     - path: src
       hash: md5
-      md5: 2aa47485a3a81ffda15286d64510c62f.dir
+      md5: c4b04a4b9b42c4317f0fdeb407a68edf.dir
       size: 63892
       nfiles: 47
     params:
@@ -62,33 +62,32 @@ stages:
     outs:
     - path: artifacts/fd001_metrics.json
       hash: md5
-      md5: 540763c36d47e15f98aefd40cb1733d4
-      size: 123
+      md5: 367136d8f17c1e9a3050f4d87e784256
+      size: 122
     - path: artifacts/fd001_model.joblib
       hash: md5
-      md5: c7a7e0ab95845a16b379de3cefe32aea
-      size: 2250565
+      md5: 5fc57509afd6236a7f3cf3bf6a07d4b4
+      size: 2251688
   serve_model:
     cmd: "python -c \"from pathlib import Path; import json, yaml; model_path = Path('artifacts/fd001_model.joblib');
-      assert model_path.exists(), 'Model artifact is missing'; config_path = Path('configs/inference_config.yaml');
-      config = yaml.safe_load(config_path.read_text(encoding='utf-8')) or {}; config.update({'model_path':
-      'artifacts/fd001_model.joblib', 'host': config.get('host', '0.0.0.0'), 'port':
-      config.get('port', 8000)}); config_path.write_text(yaml.safe_dump(config, sort_keys=False),
-      encoding='utf-8'); manifest = {'service': 'fastapi', 'model_path': 'artifacts/fd001_model.joblib',
-      'health_check': '/health', 'prediction_endpoint': '/predict'}; Path('artifacts/serving_manifest.json').write_text(json.dumps(manifest,
+      assert model_path.exists(), 'Model artifact is missing'; config = yaml.safe_load(Path('configs/inference_config.yaml').read_text(encoding='utf-8'))
+      or {}; manifest = {'service': 'fastapi', 'model_path': config.get('model_path',
+      'artifacts/fd001_model.joblib'), 'host': config.get('host', '0.0.0.0'), 'port':
+      config.get('port', 8000), 'health_check': '/health', 'prediction_endpoint':
+      '/predict'}; Path('artifacts/serving_manifest.json').write_text(json.dumps(manifest,
       indent=2), encoding='utf-8')\""
     deps:
     - path: artifacts/fd001_model.joblib
       hash: md5
-      md5: c7a7e0ab95845a16b379de3cefe32aea
-      size: 2250565
+      md5: 5fc57509afd6236a7f3cf3bf6a07d4b4
+      size: 2251688
     - path: configs/inference_config.yaml
       hash: md5
       md5: 26cbac81a4cddc98fe5f930a33126620
       size: 69
     - path: src
       hash: md5
-      md5: 2aa47485a3a81ffda15286d64510c62f.dir
+      md5: c4b04a4b9b42c4317f0fdeb407a68edf.dir
       size: 63892
       nfiles: 47
     params:
@@ -99,5 +98,5 @@ stages:
     outs:
     - path: artifacts/serving_manifest.json
       hash: md5
-      md5: 24477e874fc100e15a4da7ffb3151442
-      size: 145
+      md5: 4e22f0c15b9b6d300c436cd14449d0fb
+      size: 184

@@ -41,3 +41,7 @@ jobs:
           assert 'stages' in data, 'dvc.yaml missing stages'
           print('DVC pipeline definition is valid')
           PY
+
+      - name: Reproduce DVC pipeline
+        run: |
+          dvc repro
