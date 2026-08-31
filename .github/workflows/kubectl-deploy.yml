@@ -3,32 +3,34 @@ name: Kubernetes deploy
 on:
   workflow_dispatch:
   push:
-    tags: [ "v*" ]
+    tags: ["v*"]
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       contents: read
-      packages: read
+
     steps:
       - name: Check out code
         uses: actions/checkout@v4
 
-      - name: Configure kubectl
-        uses: azure/setup-kubectl@v4
+      - name: Verify kubectl
+        run: kubectl version --client
 
-      - name: Configure cluster credentials
-        shell: bash
-        env:
-          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+      - name: Use Docker Desktop context
+        run: kubectl config use-context docker-desktop
+
+      - name: Confirm cluster access
         run: |
-          test -n "$KUBE_CONFIG"
-          mkdir -p "$HOME/.kube"
-          printf '%s' "$KUBE_CONFIG" > "$HOME/.kube/config"
+          kubectl get nodes
+          kubectl cluster-info
 
       - name: Apply deployment and service
         run: |
-          kubectl apply --filename deploy.yml
-          kubectl apply --filename deploy_svc.yml
+          kubectl apply -f deploy.yml
+          kubectl apply -f deploy_svc.yml
           kubectl rollout status deployment/nasa-rul-deployment --timeout=180s
+
+      - name: Show service
+        run: kubectl get svc nasa-rul-service
