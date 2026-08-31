@@ -27,8 +27,10 @@ jobs:
           python -m compileall src
 
       - name: Run unit tests
+        env:
+          PYTHONPATH: .
         run: |
-          pytest -q
+          python -m pytest -q
 
       - name: Check DVC pipeline definition
         run: |
