@@ -34,7 +34,7 @@ jobs:
       - name: Log in to Docker Hub
         if: github.event_name == 'push'
         env:
-          DOCKER_USERNAME: clumumba62
+          DOCKER_USERNAME: ${{secrets['docker-username']}}
           DOCKER_PASSWORD: ${{ secrets['docker-login'] }}
         run: echo "$DOCKER_PASSWORD" | docker login docker.io --username "$DOCKER_USERNAME" --password-stdin
 
