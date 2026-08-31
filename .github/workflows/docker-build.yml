@@ -19,11 +19,15 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install DVC
-        run: python -m pip install --upgrade pip dvc
+      - name: Install dependencies and DVC
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install dvc
 
       - name: Reproduce DVC pipeline
-        run: dvc repro
+        run: |
+          python -m dvc repro
 
       - name: Build Docker image
         env:

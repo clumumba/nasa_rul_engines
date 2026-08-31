@@ -16,10 +16,6 @@ stages:
       md5: 6cf8df1447dd528b8bab5da32eb6f32e.dir
       size: 44913306
       nfiles: 13
-    - path: requirements.txt
-      hash: md5
-      md5: 9d486c0800e227e5d0e69abe62ed55a6
-      size: 217
     - path: src
       hash: md5
       md5: c4b04a4b9b42c4317f0fdeb407a68edf.dir
@@ -50,10 +46,6 @@ stages:
       hash: md5
       md5: 90fa65061a9dd7d01a10487d2ec97240
       size: 3416731
-    - path: requirements.txt
-      hash: md5
-      md5: 9d486c0800e227e5d0e69abe62ed55a6
-      size: 217
     - path: src
       hash: md5
       md5: c4b04a4b9b42c4317f0fdeb407a68edf.dir
@@ -93,10 +85,6 @@ stages:
       hash: md5
       md5: 26cbac81a4cddc98fe5f930a33126620
       size: 69
-    - path: requirements.txt
-      hash: md5
-      md5: 9d486c0800e227e5d0e69abe62ed55a6
-      size: 217
     - path: src
       hash: md5
       md5: c4b04a4b9b42c4317f0fdeb407a68edf.dir
