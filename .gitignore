@@ -15,3 +15,5 @@ mlruns/
 coverage.xml
 htmlcov/
 .dvc/
+.dvc/temp/
+.dvc/cache/
