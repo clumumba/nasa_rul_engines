@@ -62,12 +62,12 @@ stages:
     outs:
     - path: artifacts/fd001_metrics.json
       hash: md5
-      md5: 367136d8f17c1e9a3050f4d87e784256
-      size: 122
+      md5: 540763c36d47e15f98aefd40cb1733d4
+      size: 123
     - path: artifacts/fd001_model.joblib
       hash: md5
-      md5: 5fc57509afd6236a7f3cf3bf6a07d4b4
-      size: 2251688
+      md5: c7a7e0ab95845a16b379de3cefe32aea
+      size: 2250565
   serve_model:
     cmd: "python -c \"from pathlib import Path; import json, yaml; model_path = Path('artifacts/fd001_model.joblib');
       assert model_path.exists(), 'Model artifact is missing'; config = yaml.safe_load(Path('configs/inference_config.yaml').read_text(encoding='utf-8'))
@@ -79,8 +79,8 @@ stages:
     deps:
     - path: artifacts/fd001_model.joblib
       hash: md5
-      md5: 5fc57509afd6236a7f3cf3bf6a07d4b4
-      size: 2251688
+      md5: c7a7e0ab95845a16b379de3cefe32aea
+      size: 2250565
     - path: configs/inference_config.yaml
       hash: md5
       md5: 26cbac81a4cddc98fe5f930a33126620

@@ -14,6 +14,5 @@ mlruns/
 .DS_Store
 coverage.xml
 htmlcov/
-.dvc/
 .dvc/temp/
 .dvc/cache/
