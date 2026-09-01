@@ -18,7 +18,7 @@ spec:
       - name: nasa
         image: clumumba62/nasa_rul:v1
         ports:
-        - containerPort: 8001
+        - containerPort: 8000
         resources:
           limits:
             cpu: "500m"
