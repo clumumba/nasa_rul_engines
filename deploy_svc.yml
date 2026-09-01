@@ -10,6 +10,6 @@ spec:
     app: nasa_rul
   ports:
     - protocol: TCP
-      port: 8000         # The port accessible outside the cluster
-      targetPort: 8000 # The port your container is listening on
+      port: 8001         # The port accessible outside the cluster
+      targetPort: 8001 # The port your container is listening on
       nodePort: 30080
