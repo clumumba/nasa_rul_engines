@@ -155,32 +155,28 @@ git push origin v1.0.0
 
 The Docker workflow publishes `clumumba62/nasa_rul:v1`. The `docker-login` GitHub secret must contain a Docker Hub access token or password.
 
-## Example prediction payload
+## Prediction payload
+
+The model is trained on the engineered feature vector, not only the 21 raw sensor
+values. The `/predict` endpoint requires every trained feature name, including
+`_lag1`, `_delta`, `_rolling_mean_5`, and `_rolling_std_5` fields for each sensor.
+Feature names and ordering are read from the saved model, so missing or unknown
+features are rejected with HTTP 422 rather than silently filled with zeros.
+
+Example using a reduced test model:
 
 ```json
 {
   "features": {
     "sensor_1": 41.0,
-    "sensor_2": 0.82,
-    "sensor_3": 100.0,
-    "sensor_4": 52.0,
-    "sensor_5": 445.0,
-    "sensor_6": 1.0,
-    "sensor_7": 0.0,
-    "sensor_8": 0.0,
-    "sensor_9": 0.0,
-    "sensor_10": 0.0,
-    "sensor_11": 0.0,
-    "sensor_12": 0.0,
-    "sensor_13": 0.0,
-    "sensor_14": 0.0,
-    "sensor_15": 0.0,
-    "sensor_16": 0.0,
-    "sensor_17": 0.0,
-    "sensor_18": 0.0,
-    "sensor_19": 0.0,
-    "sensor_20": 0.0,
-    "sensor_21": 0.0
+    "sensor_1_lag1": 40.5,
+    "sensor_1_delta": 0.5,
+    "sensor_1_rolling_mean_5": 40.8,
+    "sensor_1_rolling_std_5": 0.2
   }
 }
 ```
+
+The production FD001 model expects 105 engineered features (21 raw sensors plus
+four derived features per sensor). Use the model's feature names when constructing a complete
+request.

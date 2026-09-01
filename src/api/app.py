@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
 import joblib
+import pandas as pd
 import yaml
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -41,6 +43,23 @@ class PredictionRequest(BaseModel):
     features: dict[str, float]
 
 
+def get_model_feature_names(model: Any) -> list[str]:
+    feature_names = getattr(model, "feature_names_in_", None)
+    if feature_names is not None:
+        return [str(name) for name in feature_names]
+
+    booster = getattr(model, "get_booster", lambda: None)()
+    booster_names = getattr(booster, "feature_names", None)
+    if booster_names is not None:
+        return [str(name) for name in booster_names]
+
+    feature_count = getattr(model, "n_features_in_", None)
+    if feature_count is not None:
+        return [f"feature_{index}" for index in range(feature_count)]
+
+    raise HTTPException(status_code=500, detail="Model does not expose its feature schema.")
+
+
 @app.get("/")
 def root() -> dict:
     return {"service": "nasa-engine-rul", "status": "ok"}
@@ -59,6 +78,19 @@ def predict(payload: PredictionRequest) -> dict:
         raise HTTPException(status_code=503, detail="Model artifact not found. Train the model first.")
 
     model = joblib.load(model_path)
-    row = payload.features
-    prediction = model.predict([[float(row.get(key, 0.0)) for key in sorted(row.keys())]])[0]
+    feature_names = get_model_feature_names(model)
+    supplied_names = set(payload.features)
+    expected_names = set(feature_names)
+    missing = sorted(expected_names - supplied_names)
+    unexpected = sorted(supplied_names - expected_names)
+    if missing or unexpected:
+        detail = {}
+        if missing:
+            detail["missing_features"] = missing
+        if unexpected:
+            detail["unexpected_features"] = unexpected
+        raise HTTPException(status_code=422, detail=detail)
+
+    row = {name: float(payload.features[name]) for name in feature_names}
+    prediction = model.predict(pd.DataFrame([row], columns=feature_names))[0]
     return {"predicted_rul": float(prediction)}

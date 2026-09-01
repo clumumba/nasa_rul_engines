@@ -1,5 +1,6 @@
 import joblib
 import numpy as np
+import pandas as pd
 from fastapi.testclient import TestClient
 from sklearn.linear_model import LinearRegression
 
@@ -19,8 +20,13 @@ def test_health_endpoint():
 
 def test_predict_endpoint_uses_selected_model(monkeypatch, tmp_path):
     model = LinearRegression()
-    feature_names = [f"sensor_{idx}" for idx in range(1, 22)]
-    X = np.array([[float(idx + 1) for idx in range(len(feature_names))]], dtype=float)
+    feature_names = [
+        "sensor_1",
+        "sensor_1_lag1",
+        "sensor_1_delta",
+        "sensor_1_rolling_mean_5",
+    ]
+    X = pd.DataFrame([[1.0, 2.0, 1.0, 1.5]], columns=feature_names)
     y = np.array([12.5], dtype=float)
     model.fit(X, y)
 
@@ -33,3 +39,18 @@ def test_predict_endpoint_uses_selected_model(monkeypatch, tmp_path):
 
     assert response.status_code == 200
     assert isinstance(response.json()["predicted_rul"], float)
+
+
+def test_predict_endpoint_rejects_features_that_do_not_match_model_schema(monkeypatch, tmp_path):
+    model = LinearRegression()
+    feature_names = ["sensor_1", "sensor_1_lag1"]
+    model.fit(pd.DataFrame([[1.0, 2.0]], columns=feature_names), [12.5])
+
+    model_path = tmp_path / "demo_model.joblib"
+    joblib.dump(model, model_path)
+    monkeypatch.setenv("MODEL_PATH", str(model_path))
+
+    response = client.post("/predict", json={"features": {"sensor_1": 1.0}})
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["missing_features"] == ["sensor_1_lag1"]
