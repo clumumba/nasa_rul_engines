@@ -29,7 +29,7 @@ def resolve_model_path() -> Path:
 
     return DEFAULT_MODEL_PATH
 
-
+# FastAPI app instance
 app = FastAPI(
     title="NASA Engine RUL API",
     description="Production-ready inference service for the NASA engine remaining useful life model.",
@@ -45,7 +45,7 @@ class PredictionRequest(BaseModel):
 def root() -> dict:
     return {"service": "nasa-engine-rul", "status": "ok"}
 
-
+# check the health of the service
 @app.get("/health")
 def health() -> dict:
     model_path = resolve_model_path()
