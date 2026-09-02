@@ -146,14 +146,17 @@ kubectl delete -f deploy.yml
 
 ### Kubernetes deployment through GitHub Actions
 
-The deployment workflow runs for version tags such as `v1.0.0` or manually through `workflow_dispatch`. Add a repository secret named `KUBE_CONFIG` containing the target cluster kubeconfig:
+The Docker workflow publishes a commit-tagged image to Docker Hub on every push to `main`. After that workflow succeeds, the deployment workflow runs on the self-hosted Docker Desktop runner, replaces the image in the checked-out `deploy.yml` with `clumumba62/nasa_rul:<commit-sha>`, and applies the deployment and service. Add a repository secret named `KUBE_CONFIG` only if using a remote runner/cluster; the Docker Desktop self-hosted runner uses its local `docker-desktop` context.
+
+You can also start the deployment manually through `workflow_dispatch`:
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+kubectl config use-context docker-desktop
+kubectl apply -f deploy.yml
+kubectl apply -f deploy_svc.yml
 ```
 
-The Docker workflow publishes `clumumba62/nasa_rul:v1`. The `docker-login` GitHub secret must contain a Docker Hub access token or password.
+The Docker workflow requires the `DOCKER_USERNAME` and `DOCKER_LOGIN` repository secrets. It publishes both `clumumba62/nasa_rul:<commit-sha>` and `clumumba62/nasa_rul:v1`; the deployment uses the immutable commit tag.
 
 ## Prediction payload
 

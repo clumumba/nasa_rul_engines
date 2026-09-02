@@ -2,11 +2,14 @@ name: Kubernetes deploy
 
 on:
   workflow_dispatch:
-  push:
-    tags: ["v*"]
+  workflow_run:
+    workflows: ["Docker build"]
+    types: [completed]
+    branches: [main]
 
 jobs:
   deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: self-hosted
     permissions:
       contents: read
@@ -25,6 +28,25 @@ jobs:
         run: |
           kubectl get nodes
           kubectl cluster-info
+
+      - name: Update deployment image
+        env:
+          IMAGE_TAG: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+        shell: pwsh
+        run: |
+          $manifest = Get-Content -Path deploy.yml -Raw
+          $image = "clumumba62/nasa_rul:$env:IMAGE_TAG"
+          $updated = [regex]::Replace(
+            $manifest,
+            '(?m)^(\s*image:\s*)\S+(\s*)$',
+            ('$1' + $image + '$2'),
+            1
+          )
+          if ($updated -eq $manifest) {
+            throw "No image entry found in deploy.yml"
+          }
+          Set-Content -Path deploy.yml -Value $updated -Encoding utf8
+          Write-Host "Deploying $image"
 
       - name: Apply deployment and service
         run: |

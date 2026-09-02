@@ -17,6 +17,7 @@ spec:
       containers:
       - name: nasa
         image: clumumba62/nasa_rul:v1
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000
         resources:
