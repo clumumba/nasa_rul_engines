@@ -17,7 +17,10 @@ spec:
       containers:
       - name: nasa
         image: clumumba62/nasa_rul:v1
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: MODEL_PATH
+          value: /app/artifacts/fd001_model.joblib
         ports:
         - containerPort: 8000
         resources:
@@ -27,3 +30,21 @@ spec:
           requests:
             cpu: "250m"
             memory: "256Mi"
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          periodSeconds: 5
+          failureThreshold: 24
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          periodSeconds: 20
+          failureThreshold: 3

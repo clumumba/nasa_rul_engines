@@ -10,10 +10,12 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends git build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt ./requirements.txt
-RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
+COPY requirements-serving.txt ./requirements-serving.txt
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements-serving.txt
 
 COPY . .
+RUN test -s artifacts/fd001_model.joblib \
+    && python -c "import joblib; joblib.load('artifacts/fd001_model.joblib'); print('Model artifact validated')"
 
 EXPOSE 8000
 

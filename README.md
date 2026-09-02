@@ -78,6 +78,9 @@ The pipeline stages are:
 
 ## Docker
 
+See [PRODUCTION_CHANGES.md](PRODUCTION_CHANGES.md) for the inference startup,
+health-check, dependency, and deployment changes required for production.
+
 Build and run the inference API and MLflow server locally:
 
 ```bash

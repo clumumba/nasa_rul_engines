@@ -18,8 +18,8 @@ stages:
       nfiles: 13
     - path: src
       hash: md5
-      md5: 342aaa2b24652bb22a06ad0a7a61ffe2.dir
-      size: 67162
+      md5: 2fb1fff331401c1e9ba9eac4de7df9cb.dir
+      size: 68391
       nfiles: 47
     params:
       params.yaml:
@@ -48,8 +48,8 @@ stages:
       size: 3416731
     - path: src
       hash: md5
-      md5: 342aaa2b24652bb22a06ad0a7a61ffe2.dir
-      size: 67162
+      md5: 2fb1fff331401c1e9ba9eac4de7df9cb.dir
+      size: 68391
       nfiles: 47
     params:
       params.yaml:
@@ -87,8 +87,8 @@ stages:
       size: 69
     - path: src
       hash: md5
-      md5: 342aaa2b24652bb22a06ad0a7a61ffe2.dir
-      size: 67162
+      md5: 2fb1fff331401c1e9ba9eac4de7df9cb.dir
+      size: 68391
       nfiles: 47
     params:
       params.yaml:

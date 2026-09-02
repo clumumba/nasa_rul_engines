@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import os
+from contextlib import asynccontextmanager
+from math import isfinite
 from pathlib import Path
 from typing import Any
 
 import joblib
 import pandas as pd
 import yaml
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Request
+from pydantic import BaseModel, field_validator
 
 APP_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_MODEL_PATH = APP_DIR / "artifacts" / "fd001_model.joblib"
@@ -31,16 +33,45 @@ def resolve_model_path() -> Path:
 
     return DEFAULT_MODEL_PATH
 
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    """Load the model before accepting traffic and keep it in memory."""
+    model_path = resolve_model_path()
+    if not model_path.is_file():
+        raise RuntimeError(f"Model artifact not found: {model_path}")
+
+    try:
+        model = joblib.load(model_path)
+        feature_names = get_model_feature_names(model)
+    except Exception as exc:
+        raise RuntimeError(f"Unable to load model artifact '{model_path}': {exc}") from exc
+
+    application.state.model = model
+    application.state.feature_names = feature_names
+    application.state.model_path = model_path
+    yield
+
+
 # FastAPI app instance
 app = FastAPI(
     title="NASA Engine RUL API",
     description="Production-ready inference service for the NASA engine remaining useful life model.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 
 class PredictionRequest(BaseModel):
     features: dict[str, float]
+
+    @field_validator("features")
+    @classmethod
+    def validate_feature_values(cls, features: dict[str, float]) -> dict[str, float]:
+        invalid = sorted(name for name, value in features.items() if not isfinite(value))
+        if invalid:
+            raise ValueError(f"Feature values must be finite numbers: {invalid}")
+        return features
 
 
 def get_model_feature_names(model: Any) -> list[str]:
@@ -66,19 +97,19 @@ def root() -> dict:
 
 # check the health of the service
 @app.get("/health")
-def health() -> dict:
-    model_path = resolve_model_path()
-    return {"status": "ok", "model_loaded": model_path.exists(), "model_path": str(model_path)}
+def health(request: Request) -> dict:
+    model_path = getattr(request.app.state, "model_path", None)
+    if model_path is None:
+        raise HTTPException(status_code=503, detail="Model is not loaded.")
+    return {"status": "ok", "model_loaded": True, "model_path": str(model_path)}
 
 
 @app.post("/predict")
-def predict(payload: PredictionRequest) -> dict:
-    model_path = resolve_model_path()
-    if not model_path.exists():
-        raise HTTPException(status_code=503, detail="Model artifact not found. Train the model first.")
-
-    model = joblib.load(model_path)
-    feature_names = get_model_feature_names(model)
+def predict(payload: PredictionRequest, request: Request) -> dict:
+    model = getattr(request.app.state, "model", None)
+    feature_names = getattr(request.app.state, "feature_names", None)
+    if model is None or feature_names is None:
+        raise HTTPException(status_code=503, detail="Model is not loaded.")
     supplied_names = set(payload.features)
     expected_names = set(feature_names)
     missing = sorted(expected_names - supplied_names)

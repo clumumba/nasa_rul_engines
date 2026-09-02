@@ -7,11 +7,9 @@ from sklearn.linear_model import LinearRegression
 from src.api.app import app
 
 
-client = TestClient(app)
-
-
 def test_health_endpoint():
-    response = client.get("/health")
+    with TestClient(app) as test_client:
+        response = test_client.get("/health")
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == "ok"
@@ -35,7 +33,8 @@ def test_predict_endpoint_uses_selected_model(monkeypatch, tmp_path):
     monkeypatch.setenv("MODEL_PATH", str(model_path))
 
     payload = {name: float(index + 1) for index, name in enumerate(feature_names)}
-    response = client.post("/predict", json={"features": payload})
+    with TestClient(app) as test_client:
+        response = test_client.post("/predict", json={"features": payload})
 
     assert response.status_code == 200
     assert isinstance(response.json()["predicted_rul"], float)
@@ -50,7 +49,20 @@ def test_predict_endpoint_rejects_features_that_do_not_match_model_schema(monkey
     joblib.dump(model, model_path)
     monkeypatch.setenv("MODEL_PATH", str(model_path))
 
-    response = client.post("/predict", json={"features": {"sensor_1": 1.0}})
+    with TestClient(app) as test_client:
+        response = test_client.post("/predict", json={"features": {"sensor_1": 1.0}})
 
     assert response.status_code == 422
     assert response.json()["detail"]["missing_features"] == ["sensor_1_lag1"]
+
+
+def test_predict_endpoint_rejects_non_finite_features(monkeypatch, tmp_path):
+    model = LinearRegression().fit(pd.DataFrame([[1.0]], columns=["sensor_1"]), [12.5])
+    model_path = tmp_path / "demo_model.joblib"
+    joblib.dump(model, model_path)
+    monkeypatch.setenv("MODEL_PATH", str(model_path))
+
+    with TestClient(app) as test_client:
+        response = test_client.post("/predict", json={"features": {"sensor_1": "NaN"}})
+
+    assert response.status_code == 422
