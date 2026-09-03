@@ -7,12 +7,19 @@ from sklearn.linear_model import LinearRegression
 from src.api.app import app
 
 
-def test_health_endpoint():
+def test_health_endpoint(monkeypatch, tmp_path):
+    model = LinearRegression().fit(pd.DataFrame([[1.0]], columns=["sensor_1"]), [12.5])
+    model_path = tmp_path / "health_model.joblib"
+    joblib.dump(model, model_path)
+    monkeypatch.setenv("MODEL_PATH", str(model_path))
+
     with TestClient(app) as test_client:
         response = test_client.get("/health")
+
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == "ok"
+    assert payload["model_loaded"] is True
     assert "model_path" in payload
 
 
