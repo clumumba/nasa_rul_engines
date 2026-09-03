@@ -104,6 +104,15 @@ def health(request: Request) -> dict:
     return {"status": "ok", "model_loaded": True, "model_path": str(model_path)}
 
 
+@app.get("/metadata")
+def metadata(request: Request) -> dict:
+    """Return the exact input contract embedded in the loaded model."""
+    feature_names = getattr(request.app.state, "feature_names", None)
+    if feature_names is None:
+        raise HTTPException(status_code=503, detail="Model is not loaded.")
+    return {"feature_count": len(feature_names), "feature_names": feature_names}
+
+
 @app.post("/predict")
 def predict(payload: PredictionRequest, request: Request) -> dict:
     model = getattr(request.app.state, "model", None)

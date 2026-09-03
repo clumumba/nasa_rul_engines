@@ -183,6 +183,34 @@ Example using a reduced test model:
 }
 ```
 
-The production FD001 model expects 105 engineered features (21 raw sensors plus
-four derived features per sensor). Use the model's feature names when constructing a complete
-request.
+The current production FD001 model expects **108** values: `setting_1` through
+`setting_3`, the 21 raw sensor values, and four derived values for each sensor.
+Get the exact ordered contract from `GET /metadata`; this avoids relying on a
+hard-coded list when a model is replaced.
+
+## How an end user sends a prediction
+
+`POST /predict` intentionally accepts an already-engineered feature vector. A
+single raw sensor reading is not sufficient: lag, delta, and rolling values need
+the earlier readings for the same engine unit. An application integrating this
+model should retain each engine's recent history, use the same feature code as
+training, and submit the latest engineered row.
+
+```python
+import requests
+from src.features.build_features import add_engine_features
+
+# history contains chronologically ordered readings for one unit: unit, cycle,
+# setting_1..setting_3, and sensor_1..sensor_21. Keep at least five cycles.
+engineered = add_engine_features(history)
+required = requests.get("http://localhost:8001/metadata").json()["feature_names"]
+features = engineered.iloc[-1][required].astype(float).to_dict()
+
+response = requests.post("http://localhost:8001/predict", json={"features": features})
+response.raise_for_status()
+print(response.json()["predicted_rul"])
+```
+
+For the first cycles of a new engine, the integration must use the same
+initial-value policy as training. Do not invent missing lag or rolling values;
+send the feature values produced by the versioned feature pipeline.

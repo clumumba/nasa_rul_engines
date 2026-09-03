@@ -23,6 +23,24 @@ def test_health_endpoint(monkeypatch, tmp_path):
     assert "model_path" in payload
 
 
+def test_metadata_endpoint_returns_model_schema(monkeypatch, tmp_path):
+    model = LinearRegression().fit(
+        pd.DataFrame([[1.0, 2.0]], columns=["setting_1", "sensor_1"]), [12.5]
+    )
+    model_path = tmp_path / "metadata_model.joblib"
+    joblib.dump(model, model_path)
+    monkeypatch.setenv("MODEL_PATH", str(model_path))
+
+    with TestClient(app) as test_client:
+        response = test_client.get("/metadata")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "feature_count": 2,
+        "feature_names": ["setting_1", "sensor_1"],
+    }
+
+
 def test_predict_endpoint_uses_selected_model(monkeypatch, tmp_path):
     model = LinearRegression()
     feature_names = [
