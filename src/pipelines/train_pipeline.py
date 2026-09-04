@@ -12,7 +12,7 @@ import yaml
 from src.data.load import COLUMNS, load_train
 from src.data.split import split_by_unit
 from src.data.validate import validate_dataframe
-from src.features.build_features import add_engine_features, compute_rul_labels
+from src.features.build_features import SENSOR_COLUMNS, add_engine_features, compute_rul_labels
 from src.models.baseline_xgb import save_model, train_xgb_model
 from src.models.evaluate import compute_metrics
 
@@ -45,15 +45,32 @@ def run_training(dataset: str = "FD001", config_path: str = "configs/train_confi
         train_df = load_train(dataset)
         validate_dataframe(train_df, COLUMNS)
 
-        feature_df = add_engine_features(train_df, window=config.get("feature_window", 5))
-        feature_df["RUL"] = compute_rul_labels(feature_df, max_rul=config.get("max_rul", 130))
-
-        train_split, val_split = split_by_unit(
-            feature_df,
-            target_col="RUL",
+        train_raw, val_raw = split_by_unit(
+            train_df,
             test_size=config.get("test_size", 0.2),
             random_state=config.get("random_state", 42),
         )
+
+        # Fit preprocessing statistics on training engines only. Reusing those
+        # values for validation prevents information from held-out engines from
+        # leaking into their first-cycle lag features.
+        lag_fill_values = {
+            sensor: float(train_raw[sensor].median()) for sensor in SENSOR_COLUMNS
+        }
+        feature_window = config.get("feature_window", 5)
+        train_split = add_engine_features(
+            train_raw,
+            window=feature_window,
+            lag_fill_values=lag_fill_values,
+        )
+        val_split = add_engine_features(
+            val_raw,
+            window=feature_window,
+            lag_fill_values=lag_fill_values,
+        )
+        max_rul = config.get("max_rul", 130)
+        train_split["RUL"] = compute_rul_labels(train_split, max_rul=max_rul)
+        val_split["RUL"] = compute_rul_labels(val_split, max_rul=max_rul)
 
         model, predictions, y_val = train_xgb_model(train_split, val_split, target_col="RUL")
         metrics = compute_metrics(y_val, predictions)
