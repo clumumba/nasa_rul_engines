@@ -2,6 +2,30 @@
 
 This project implements an MLOps workflow for predicting remaining useful life (RUL) for NASA turbofan engines. It includes data validation, feature engineering, XGBoost training, MLflow tracking, DVC reproducibility, a FastAPI inference service, Docker packaging, and Kubernetes deployment manifests.
 
+## Model evaluation
+
+The FD001 pipeline reports two complementary evaluations:
+
+- **Engine holdout:** a model trained on 80% of the training engines and
+  evaluated on the remaining 20%, with no engine appearing in both partitions.
+- **Official NASA test:** the deployable model is retrained on all training
+  engines, then evaluated at the final observed cycle of each truncated test
+  trajectory against NASA's supplied RUL labels.
+
+Latest reproduced results:
+
+| Dataset | Holdout R2 | Official MAE | Official RMSE | Official R2 | NASA score |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| FD001 | 0.838 | 14.67 | 19.61 | 0.777 | 1170.63 |
+| FD002 | 0.781 | 19.83 | 28.06 | 0.728 | 8956.70 |
+| FD003 | 0.845 | 15.77 | 21.33 | 0.735 | 2379.53 |
+| FD004 | 0.766 | 22.19 | 29.49 | 0.707 | 7887.04 |
+
+The asymmetric NASA score penalizes predictions that overestimate remaining
+life more heavily; lower is better. Exact, unrounded values are written to
+`artifacts/<dataset>_metrics.json` and logged to MLflow. Each dataset also
+produces its own deployable `artifacts/<dataset>_model.joblib` model.
+
 ## Quick start
 
 ```bash
@@ -37,6 +61,11 @@ The API is available at `http://localhost:8000`. Open `http://localhost:8000/doc
 2. Train the model:
    ```bash
    python -m src.pipelines.train_pipeline --dataset FD001 --config configs/train_config.yaml
+   ```
+
+   Train and evaluate all four C-MAPSS subsets:
+   ```bash
+   python -m src.pipelines.train_pipeline --dataset all --config configs/train_config.yaml
    ```
 
 3. Run the API locally:

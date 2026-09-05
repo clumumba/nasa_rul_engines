@@ -9,12 +9,12 @@ import mlflow
 import mlflow.xgboost
 import yaml
 
-from src.data.load import COLUMNS, load_train
+from src.data.load import COLUMNS, DATASETS, load_rul, load_test, load_train
 from src.data.split import split_by_unit
 from src.data.validate import validate_dataframe
 from src.features.build_features import SENSOR_COLUMNS, add_engine_features, compute_rul_labels
-from src.models.baseline_xgb import save_model, train_xgb_model
-from src.models.evaluate import compute_metrics
+from src.models.baseline_xgb import fit_xgb_model, save_model, train_xgb_model
+from src.models.evaluate import compute_metrics, evaluate_last_cycle
 
 
 def configure_mlflow() -> None:
@@ -72,8 +72,46 @@ def run_training(dataset: str = "FD001", config_path: str = "configs/train_confi
         train_split["RUL"] = compute_rul_labels(train_split, max_rul=max_rul)
         val_split["RUL"] = compute_rul_labels(val_split, max_rul=max_rul)
 
-        model, predictions, y_val = train_xgb_model(train_split, val_split, target_col="RUL")
-        metrics = compute_metrics(y_val, predictions)
+        holdout_model, predictions, y_val = train_xgb_model(
+            train_split,
+            val_split,
+            target_col="RUL",
+        )
+        holdout_metrics = {
+            f"holdout_{name}": value
+            for name, value in compute_metrics(y_val, predictions).items()
+        }
+
+        # Once the internal holdout has measured the chosen configuration, fit
+        # the deployable model on every available training engine and evaluate
+        # one final-cycle prediction per engine against NASA's official labels.
+        full_lag_fill_values = {
+            sensor: float(train_df[sensor].median()) for sensor in SENSOR_COLUMNS
+        }
+        full_train = add_engine_features(
+            train_df,
+            window=feature_window,
+            lag_fill_values=full_lag_fill_values,
+        )
+        full_train["RUL"] = compute_rul_labels(full_train, max_rul=max_rul)
+        model = fit_xgb_model(full_train, target_col="RUL")
+
+        test_df = load_test(dataset)
+        validate_dataframe(test_df, COLUMNS)
+        featured_test = add_engine_features(
+            test_df,
+            window=feature_window,
+            lag_fill_values=full_lag_fill_values,
+        )
+        official_metrics = {
+            f"official_test_{name}": value
+            for name, value in evaluate_last_cycle(
+                model,
+                featured_test,
+                load_rul(dataset),
+            ).items()
+        }
+        metrics = {**holdout_metrics, **official_metrics}
 
         output_dir = Path(config.get("output_dir", "artifacts"))
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -89,12 +127,30 @@ def run_training(dataset: str = "FD001", config_path: str = "configs/train_confi
         return {"run_id": run.info.run_id, "model_path": str(model_path), "metrics": metrics}
 
 
+def run_all_training(config_path: str = "configs/train_config.yaml") -> dict[str, dict]:
+    """Train and evaluate every NASA C-MAPSS subset."""
+    return {
+        dataset: run_training(dataset=dataset, config_path=config_path)
+        for dataset in DATASETS
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train the NASA engine RUL model with MLflow tracking.")
-    parser.add_argument("--dataset", default="FD001", help="Dataset name to train on")
+    parser.add_argument(
+        "--dataset",
+        default="FD001",
+        type=str.upper,
+        choices=[*DATASETS, "ALL"],
+        help="Dataset to train on, or ALL for FD001 through FD004",
+    )
     parser.add_argument("--config", default="configs/train_config.yaml", help="Training configuration file")
     args = parser.parse_args()
-    print(run_training(dataset=args.dataset, config_path=args.config))
+    if args.dataset == "ALL":
+        result = run_all_training(config_path=args.config)
+    else:
+        result = run_training(dataset=args.dataset, config_path=args.config)
+    print(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":

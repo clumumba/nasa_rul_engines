@@ -11,13 +11,11 @@ def select_feature_columns(df, target_col: str = "RUL"):
     return [col for col in df.columns if col not in excluded]
 
 
-def train_xgb_model(train_df, val_df, target_col: str = "RUL"):
+def fit_xgb_model(train_df, target_col: str = "RUL"):
     feature_cols = select_feature_columns(train_df, target_col)
 
     x_train = train_df[feature_cols]
     y_train = train_df[target_col]
-    x_val = val_df[feature_cols]
-    y_val = val_df[target_col]
 
     model = xgb.XGBRegressor(
         n_estimators=500,
@@ -30,6 +28,14 @@ def train_xgb_model(train_df, val_df, target_col: str = "RUL"):
     )
 
     model.fit(x_train, y_train)
+    return model
+
+
+def train_xgb_model(train_df, val_df, target_col: str = "RUL"):
+    model = fit_xgb_model(train_df, target_col)
+    feature_cols = select_feature_columns(train_df, target_col)
+    x_val = val_df[feature_cols]
+    y_val = val_df[target_col]
     predictions = model.predict(x_val)
 
     return model, predictions, y_val

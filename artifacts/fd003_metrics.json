@@ -1,0 +1,11 @@
+{
+  "holdout_MAE": 11.5831298828125,
+  "holdout_MSE": 284.2334289550781,
+  "holdout_RMSE": 16.859223853875307,
+  "holdout_R2": 0.8454040884971619,
+  "official_test_MAE": 15.767048883438111,
+  "official_test_MSE": 454.9426068118704,
+  "official_test_RMSE": 21.329383648194582,
+  "official_test_R2": 0.7345102451054609,
+  "official_test_NASA_SCORE": 2379.532912528455
+}
