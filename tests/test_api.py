@@ -138,7 +138,12 @@ def test_predict_history_endpoint_engineers_features_using_training_metadata(
     assert isinstance(response.json()["predicted_rul"], float)
 
 
-def test_predict_history_endpoint_rejects_nonconsecutive_cycles():
+def test_predict_history_endpoint_rejects_nonconsecutive_cycles(monkeypatch, tmp_path):
+    model = LinearRegression().fit(pd.DataFrame([[1.0]], columns=["sensor_1"]), [12.5])
+    model_path = tmp_path / "history_validation_model.joblib"
+    joblib.dump(model, model_path)
+    monkeypatch.setenv("MODEL_PATH", str(model_path))
+
     reading = {
         "cycle": 1,
         "setting_1": 0.1,
