@@ -1,6 +1,31 @@
 # NASA Engine RUL MLOps Project
 
-This project implements an MLOps workflow for predicting remaining useful life (RUL) for NASA turbofan engines. It includes data validation, feature engineering, XGBoost training, MLflow tracking, DVC reproducibility, a FastAPI inference service, Docker packaging, and Kubernetes deployment manifests.
+This project predicts remaining useful life (RUL) for NASA turbofan engines. It includes data validation, feature engineering, XGBoost training, MLflow tracking, DVC reproducibility, a FastAPI inference service, Docker packaging, and Kubernetes deployment manifests.
+
+## Model performance
+
+Metrics below are from a fresh run of `python -m src.pipelines.performance_report` using the
+saved model artifacts. Evaluation uses the official NASA C-MAPSS test subset: one prediction
+for each engine at its final observed cycle, compared with the supplied RUL label. The
+baseline predicts the mean capped RUL from the corresponding training subset for every test
+engine. Run `python -m src.pipelines.train_pipeline --dataset ALL` followed by the report
+command to retrain and reproduce these results.
+
+| Dataset | Test engines | XGBoost MAE | Mean baseline MAE | XGBoost RMSE | Mean baseline RMSE |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| FD001 | 100 | 14.67 | 35.93 | 19.61 | 43.60 |
+| FD002 | 259 | 19.83 | 45.87 | 28.06 | 54.32 |
+| FD003 | 100 | 15.77 | 38.73 | 21.33 | 46.08 |
+| FD004 | 248 | 22.19 | 46.99 | 29.49 | 55.23 |
+
+Errors are measured in RUL cycles; lower is better. The model outperforms the constant
+training-mean baseline on both metrics across all four subsets. Evaluation output with
+unrounded metrics and R²/NASA score is in
+[`docs/performance_metrics.json`](docs/performance_metrics.json).
+
+![Official NASA test MAE and RMSE compared with the training-mean baseline](docs/assets/model-performance.png)
+
+![FD001 official test predictions compared with true RUL](docs/assets/fd001-predictions.png)
 
 ## Model evaluation
 
@@ -28,7 +53,20 @@ produces its own deployable `artifacts/<dataset>_model.joblib` model.
 
 ## Quick start
 
+Create and activate `.venv`, install the project dependencies, and reproduce the DVC
+pipeline. Use the activation command for your shell:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m dvc repro
+uvicorn src.api.app:app --host 0.0.0.0 --port 8000
+```
+
 ```bash
+python -m venv .venv
+source .venv/bin/activate
 python -m pip install -r requirements.txt
 python -m dvc repro
 uvicorn src.api.app:app --host 0.0.0.0 --port 8000
@@ -50,15 +88,9 @@ The API is available at `http://localhost:8000`. Open `http://localhost:8000/doc
 
 ## Local setup
 
-1. Create a virtual environment and install dependencies:
-   ```bash
-   python -m venv .nasa
-   . .venv/bin/activate  # Windows: .venv\Scripts\activate or Source .nasa/Scripts/activate
-   python -m pip install --upgrade pip
-   pip install -r requirements.txt
-   ```
+1. Complete the environment setup from Quick start.
 
-2. Train the model:
+2. Train a single dataset:
    ```bash
    python -m src.pipelines.train_pipeline --dataset FD001 --config configs/train_config.yaml
    ```
@@ -90,25 +122,21 @@ mlflow ui --backend-store-uri file://$PWD/mlruns --host 0.0.0.0 --port 5000
 
 ## DVC
 
-The repository includes a DVC pipeline definition in `dvc.yaml` that covers the full ML lifecycle from raw data ingestion to model serving:
+The DVC pipeline in `dvc.yaml` covers ingestion, training/evaluation for FD001-FD004, plot generation, and serving metadata:
 
 ```bash
-pip install dvc
-# if the project is initialized as a git repo:
-dvc init
-dvc repro
+python -m pip install -r requirements.txt
+python -m dvc repro
 ```
 
 The pipeline stages are:
 
 - `ingest_data` — validates and materializes the raw FD001 training dataset into `data/processed/`
-- `train_model` — trains the XGBoost model and writes model and metrics artifacts
+- `train_model` — trains all four XGBoost models and writes model and metrics artifacts
+- `evaluate_models` — evaluates the saved models on official NASA test labels, compares to a mean-RUL baseline, and generates the plots above
 - `serve_model` — validates the model artifact and writes a serving manifest/config used by the FastAPI API
 
 ## Docker
-
-See [PRODUCTION_CHANGES.md](PRODUCTION_CHANGES.md) for the inference startup,
-health-check, dependency, and deployment changes required for production.
 
 Build and run the inference API and MLflow server locally:
 
@@ -120,7 +148,7 @@ The API is exposed on `http://localhost:8000` and MLflow on `http://localhost:50
 
 ## CI/CD
 
-GitHub Actions automatically installs dependencies, runs unit tests, reproduces the DVC pipeline, and validates the pipeline definition for every push and pull request. The workflows also build and publish the API image to Docker Hub on pushes, validate Kubernetes manifests, and deploy tagged releases when the `KUBE_CONFIG` repository secret is configured.
+GitHub Actions installs dependencies, runs unit tests, and reproduces the DVC pipeline. The latest available successful CI run is [run #32](https://github.com/clumumba/nasa_rul_engines/actions/runs/33829570905) on commit `3cb9c4e`. It predates the current uncommitted changes; CI must run again after they are pushed.
 
 - `.github/workflows/ci.yml` — tests and `dvc repro`
 - `.github/workflows/docker-build.yml` — DVC reproduction and Docker build/publish
@@ -128,9 +156,22 @@ GitHub Actions automatically installs dependencies, runs unit tests, reproduces 
 - `.github/workflows/kubectl-deploy.yml` — Kubernetes deployment
 - `deploy.yml` and `deploy_svc.yml` — API deployment and service manifests
 
+## Deployment architecture
+
+```mermaid
+flowchart LR
+    Client[Client] -->|HTTP :30080| Service[Kubernetes NodePort Service]
+    Service -->|port 8001 to targetPort 8000| Pods[FastAPI pods, 2 replicas]
+    Pods -->|load on startup| Model[FD001 model artifact]
+    DockerHub[Docker Hub image] -->|image pull| Pods
+    GitHub[GitHub Actions] -->|build and push| DockerHub
+    GitHub -->|self-hosted runner kubectl apply| K8s[Docker Desktop Kubernetes]
+    K8s --> Pods
+```
+
 ## Kubernetes deployment
 
-The root-level manifests deploy the Docker Hub image `clumumba62/nasa_rul:v1`:
+The root-level manifests deploy the Docker Hub image `clumumba62/nasa_rul:<tag>`:
 
 - `deploy.yml` — two API replicas with CPU and memory requests/limits
 - `deploy_svc.yml` — `NodePort` service on port `30080`
@@ -169,6 +210,37 @@ For another cluster, call the health endpoint at `<node-ip>:30080`:
 curl http://<node-ip>:30080/health
 ```
 
+On Docker Desktop, the NodePort is commonly reachable at `http://localhost:30080`.
+Alternatively, forward the service port to local port 8001:
+
+```bash
+kubectl port-forward service/nasa-rul-service 8001:8001
+curl http://localhost:8001/health
+```
+
+### Brief local deployment demonstration
+
+From the repository root, with Docker Desktop Kubernetes enabled and the `docker-desktop`
+context active:
+
+```powershell
+python -m dvc repro
+$tag = Get-Date -Format "yyyyMMddHHmmss"
+docker build -t "clumumba62/nasa_rul:$tag" .
+docker login
+docker push "clumumba62/nasa_rul:$tag"
+kubectl apply -f deploy.yml
+kubectl apply -f deploy_svc.yml
+kubectl set image deployment/nasa-rul-deployment "nasa=clumumba62/nasa_rul:$tag"
+kubectl rollout status deployment/nasa-rul-deployment
+kubectl port-forward service/nasa-rul-service 8001:8001
+```
+
+In a second terminal, verify the API with `curl http://localhost:8001/health` and make a
+history prediction using the example below. This is a command walkthrough, not a completed
+deployment: the Docker daemon and Kubernetes API were unavailable during this documentation
+update, so no successful local cluster rollout is claimed.
+
 Remove the resources when finished:
 
 ```bash
@@ -190,56 +262,47 @@ kubectl apply -f deploy_svc.yml
 
 The Docker workflow requires the `DOCKER_USERNAME` and `DOCKER_LOGIN` repository secrets. It publishes both `clumumba62/nasa_rul:<commit-sha>` and `clumumba62/nasa_rul:v1`; the deployment uses the immutable commit tag.
 
-## Prediction payload
+## Prediction API
 
-The model is trained on the engineered feature vector, not only the 21 raw sensor
-values. The `/predict` endpoint requires every trained feature name, including
-`_lag1`, `_delta`, `_rolling_mean_5`, and `_rolling_std_5` fields for each sensor.
-Feature names and ordering are read from the saved model, so missing or unknown
-features are rejected with HTTP 422 rather than silently filled with zeros.
+`POST /predict/history` accepts an engine's raw historical cycle readings. Each
+reading includes `cycle`, `setting_1` through `setting_3`, and `sensor_1` through
+`sensor_21`. The API sorts cycles, validates they are unique and consecutive,
+and applies the same lag, delta, rolling-window, and training lag-fill values
+used by the saved model. It predicts RUL for the latest cycle in the request.
+Send recent consecutive cycles; five readings provide a complete rolling window.
 
-Example using a reduced test model:
-
-```json
-{
-  "features": {
-    "sensor_1": 41.0,
-    "sensor_1_lag1": 40.5,
-    "sensor_1_delta": 0.5,
-    "sensor_1_rolling_mean_5": 40.8,
-    "sensor_1_rolling_std_5": 0.2
-  }
-}
-```
-
-The current production FD001 model expects **108** values: `setting_1` through
-`setting_3`, the 21 raw sensor values, and four derived values for each sensor.
-Get the exact ordered contract from `GET /metadata`; this avoids relying on a
-hard-coded list when a model is replaced.
-
-## How an end user sends a prediction
-
-`POST /predict` intentionally accepts an already-engineered feature vector. A
-single raw sensor reading is not sufficient: lag, delta, and rolling values need
-the earlier readings for the same engine unit. An application integrating this
-model should retain each engine's recent history, use the same feature code as
-training, and submit the latest engineered row.
+Example using five real FD001 test cycles from the checked-in NASA data:
 
 ```python
 import requests
-from src.features.build_features import add_engine_features
+from src.data.load import load_test
 
-# history contains chronologically ordered readings for one unit: unit, cycle,
-# setting_1..setting_3, and sensor_1..sensor_21. Keep at least five cycles.
-engineered = add_engine_features(history)
-required = requests.get("http://localhost:8001/metadata").json()["feature_names"]
-features = engineered.iloc[-1][required].astype(float).to_dict()
-
-response = requests.post("http://localhost:8001/predict", json={"features": features})
+history = (
+    load_test("FD001")
+    .query("unit == 1")
+    .head(5)
+    .drop(columns="unit")
+    .to_dict(orient="records")
+)
+response = requests.post(
+    "http://localhost:8001/predict/history",
+    json={"history": history},
+)
 response.raise_for_status()
-print(response.json()["predicted_rul"])
+print(response.json())
 ```
 
-For the first cycles of a new engine, the integration must use the same
-initial-value policy as training. Do not invent missing lag or rolling values;
-send the feature values produced by the versioned feature pipeline.
+Sample response from a local request using the saved FD001 model:
+
+```json
+{
+  "predicted_rul": 123.22319793701172,
+  "cycle": 5,
+  "history_cycles": 5
+}
+```
+
+`GET /metadata` still describes the model's engineered input schema. The
+existing `POST /predict` route remains available for callers that already
+produce a complete, exact feature vector; ordinary consumers can use
+`POST /predict/history` instead.

@@ -1,2 +1,5 @@
 /fd001_metrics.json
 /serving_manifest.json
+/performance_metrics.json
+/model-performance.png
+/fd001-predictions.png

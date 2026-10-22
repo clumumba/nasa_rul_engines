@@ -3,6 +3,7 @@ stages:
     cmd: >-
       python -c "from pathlib import Path; from src.data.load import COLUMNS, load_train; from src.data.validate import validate_dataframe; out_dir = Path('data/processed'); out_dir.mkdir(parents=True, exist_ok=True); df = load_train('FD001'); validate_dataframe(df, COLUMNS); df.to_csv(out_dir / 'fd001_train.csv', index=False)"
     deps:
+      - requirements.txt
       - src
       - data/raw
       - configs/train_config.yaml
@@ -17,13 +18,14 @@ stages:
       - data/processed/fd001_train.csv
 
   train_model:
-    cmd: python -m src.pipelines.train_pipeline --dataset FD001 --config configs/train_config.yaml
+    cmd: python -m src.pipelines.train_pipeline --dataset ALL --config configs/train_config.yaml
     deps:
+      - requirements.txt
       - src
       - data/processed/fd001_train.csv
+      - data/raw
       - configs/train_config.yaml
     params:
-      - dataset
       - max_rul
       - test_size
       - random_state
@@ -31,12 +33,31 @@ stages:
       - output_dir
     outs:
       - artifacts/fd001_model.joblib
-      - artifacts/fd001_metrics.json
+      - artifacts/fd002_model.joblib
+      - artifacts/fd003_model.joblib
+      - artifacts/fd004_model.joblib
+
+  evaluate_models:
+    cmd: python -m src.pipelines.performance_report
+    deps:
+      - requirements.txt
+      - src
+      - data/raw
+      - configs/train_config.yaml
+      - artifacts/fd001_model.joblib
+      - artifacts/fd002_model.joblib
+      - artifacts/fd003_model.joblib
+      - artifacts/fd004_model.joblib
+    outs:
+      - artifacts/performance_metrics.json
+      - artifacts/model-performance.png
+      - artifacts/fd001-predictions.png
 
   serve_model:
     cmd: >-
       python -c "from pathlib import Path; import json, yaml; model_path = Path('artifacts/fd001_model.joblib'); assert model_path.exists(), 'Model artifact is missing'; config = yaml.safe_load(Path('configs/inference_config.yaml').read_text(encoding='utf-8')) or {}; manifest = {'service': 'fastapi', 'model_path': config.get('model_path', 'artifacts/fd001_model.joblib'), 'host': config.get('host', '0.0.0.0'), 'port': config.get('port', 8000), 'health_check': '/health', 'prediction_endpoint': '/predict'}; Path('artifacts/serving_manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')"
     deps:
+      - requirements.txt
       - src
       - artifacts/fd001_model.joblib
       - configs/inference_config.yaml

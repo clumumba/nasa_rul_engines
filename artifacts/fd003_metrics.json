@@ -7,5 +7,10 @@
   "official_test_MSE": 454.9426068118704,
   "official_test_RMSE": 21.329383648194582,
   "official_test_R2": 0.7345102451054609,
-  "official_test_NASA_SCORE": 2379.532912528455
+  "official_test_NASA_SCORE": 2379.532912528455,
+  "official_test_mean_baseline_MAE": 38.726262135922326,
+  "official_test_mean_baseline_MSE": 2123.020737764581,
+  "official_test_mean_baseline_RMSE": 46.076249172047206,
+  "official_test_mean_baseline_R2": -0.23892606861994947,
+  "official_test_mean_baseline_NASA_SCORE": 73539.38394198065
 }

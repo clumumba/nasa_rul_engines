@@ -8,13 +8,21 @@ def test_dvc_pipeline_has_end_to_end_stages_without_overlapping_files():
     pipeline = yaml.safe_load(pipeline_path.read_text(encoding="utf-8"))
     stages = pipeline["stages"]
 
-    assert list(stages) == ["ingest_data", "train_model", "serve_model"]
+    assert list(stages) == [
+        "ingest_data",
+        "train_model",
+        "evaluate_models",
+        "serve_model",
+    ]
 
     for stage in stages.values():
         dependencies = set(stage.get("deps", []))
         outputs = set(stage.get("outs", []))
         assert not dependencies & outputs
+        if stage.get("cmd", "").startswith("python"):
+            assert "requirements.txt" in dependencies
 
     assert "data/processed/fd001_train.csv" in stages["ingest_data"]["outs"]
     assert "artifacts/fd001_model.joblib" in stages["train_model"]["outs"]
+    assert "artifacts/performance_metrics.json" in stages["evaluate_models"]["outs"]
     assert "artifacts/serving_manifest.json" in stages["serve_model"]["outs"]

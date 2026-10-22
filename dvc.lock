@@ -16,11 +16,15 @@ stages:
       md5: 6cf8df1447dd528b8bab5da32eb6f32e.dir
       size: 44913306
       nfiles: 13
+    - path: requirements.txt
+      hash: md5
+      md5: cb26580e6c15fad9385b412f21029898
+      size: 236
     - path: src
       hash: md5
-      md5: 2fb1fff331401c1e9ba9eac4de7df9cb.dir
-      size: 68391
-      nfiles: 47
+      md5: 16f45f6d355769aee9234f54a662df57.dir
+      size: 30042
+      nfiles: 16
     params:
       params.yaml:
         dataset: FD001
@@ -35,7 +39,7 @@ stages:
       md5: 90fa65061a9dd7d01a10487d2ec97240
       size: 3416731
   train_model:
-    cmd: python -m src.pipelines.train_pipeline --dataset FD001 --config 
+    cmd: python -m src.pipelines.train_pipeline --dataset ALL --config 
       configs/train_config.yaml
     deps:
     - path: configs/train_config.yaml
@@ -46,28 +50,44 @@ stages:
       hash: md5
       md5: 90fa65061a9dd7d01a10487d2ec97240
       size: 3416731
+    - path: data/raw
+      hash: md5
+      md5: 6cf8df1447dd528b8bab5da32eb6f32e.dir
+      size: 44913306
+      nfiles: 13
+    - path: requirements.txt
+      hash: md5
+      md5: cb26580e6c15fad9385b412f21029898
+      size: 236
     - path: src
       hash: md5
-      md5: 2fb1fff331401c1e9ba9eac4de7df9cb.dir
-      size: 68391
-      nfiles: 47
+      md5: 16f45f6d355769aee9234f54a662df57.dir
+      size: 30042
+      nfiles: 16
     params:
       params.yaml:
-        dataset: FD001
         feature_window: 5
         max_rul: 130
         output_dir: artifacts
         random_state: 42
         test_size: 0.2
     outs:
-    - path: artifacts/fd001_metrics.json
-      hash: md5
-      md5: 540763c36d47e15f98aefd40cb1733d4
-      size: 123
     - path: artifacts/fd001_model.joblib
       hash: md5
-      md5: c7a7e0ab95845a16b379de3cefe32aea
-      size: 2250565
+      md5: 59427cf03c6a74166927d88caa65ea9c
+      size: 2280198
+    - path: artifacts/fd002_model.joblib
+      hash: md5
+      md5: cc2bd07e8dd10aed9c41cff83b79b038
+      size: 2276033
+    - path: artifacts/fd003_model.joblib
+      hash: md5
+      md5: 4c7bd5f6f2f02bef8252d8945d554f08
+      size: 2257203
+    - path: artifacts/fd004_model.joblib
+      hash: md5
+      md5: 095f7d0219a04067ff7811935d6004a5
+      size: 2259711
   serve_model:
     cmd: "python -c \"from pathlib import Path; import json, yaml; model_path = Path('artifacts/fd001_model.joblib');
       assert model_path.exists(), 'Model artifact is missing'; config = yaml.safe_load(Path('configs/inference_config.yaml').read_text(encoding='utf-8'))
@@ -79,17 +99,21 @@ stages:
     deps:
     - path: artifacts/fd001_model.joblib
       hash: md5
-      md5: c7a7e0ab95845a16b379de3cefe32aea
-      size: 2250565
+      md5: 59427cf03c6a74166927d88caa65ea9c
+      size: 2280198
     - path: configs/inference_config.yaml
       hash: md5
       md5: 26cbac81a4cddc98fe5f930a33126620
       size: 69
+    - path: requirements.txt
+      hash: md5
+      md5: cb26580e6c15fad9385b412f21029898
+      size: 236
     - path: src
       hash: md5
-      md5: 2fb1fff331401c1e9ba9eac4de7df9cb.dir
-      size: 68391
-      nfiles: 47
+      md5: 16f45f6d355769aee9234f54a662df57.dir
+      size: 30042
+      nfiles: 16
     params:
       params.yaml:
         host: 0.0.0.0
@@ -100,3 +124,53 @@ stages:
       hash: md5
       md5: 4e22f0c15b9b6d300c436cd14449d0fb
       size: 184
+  evaluate_models:
+    cmd: python -m src.pipelines.performance_report
+    deps:
+    - path: artifacts/fd001_model.joblib
+      hash: md5
+      md5: 59427cf03c6a74166927d88caa65ea9c
+      size: 2280198
+    - path: artifacts/fd002_model.joblib
+      hash: md5
+      md5: cc2bd07e8dd10aed9c41cff83b79b038
+      size: 2276033
+    - path: artifacts/fd003_model.joblib
+      hash: md5
+      md5: 4c7bd5f6f2f02bef8252d8945d554f08
+      size: 2257203
+    - path: artifacts/fd004_model.joblib
+      hash: md5
+      md5: 095f7d0219a04067ff7811935d6004a5
+      size: 2259711
+    - path: configs/train_config.yaml
+      hash: md5
+      md5: f9c112e7b7c262e5b3fc3de78857c07e
+      size: 106
+    - path: data/raw
+      hash: md5
+      md5: 6cf8df1447dd528b8bab5da32eb6f32e.dir
+      size: 44913306
+      nfiles: 13
+    - path: requirements.txt
+      hash: md5
+      md5: cb26580e6c15fad9385b412f21029898
+      size: 236
+    - path: src
+      hash: md5
+      md5: 16f45f6d355769aee9234f54a662df57.dir
+      size: 30042
+      nfiles: 16
+    outs:
+    - path: artifacts/fd001-predictions.png
+      hash: md5
+      md5: 7158dcf48e3690134a060bf4f3ce801f
+      size: 79019
+    - path: artifacts/model-performance.png
+      hash: md5
+      md5: fb516dbba81e4fdd4e9d7758c4f25a13
+      size: 64120
+    - path: artifacts/performance_metrics.json
+      hash: md5
+      md5: 28b8ad3107a82e7be9a998591e45ff7d
+      size: 2135

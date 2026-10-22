@@ -10,7 +10,9 @@ import joblib
 import pandas as pd
 import yaml
 from fastapi import FastAPI, HTTPException, Request
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
+
+from src.features.build_features import add_engine_features
 
 APP_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_MODEL_PATH = APP_DIR / "artifacts" / "fd001_model.joblib"
@@ -74,6 +76,55 @@ class PredictionRequest(BaseModel):
         return features
 
 
+class CycleReading(BaseModel):
+    cycle: int = Field(ge=1)
+    setting_1: float
+    setting_2: float
+    setting_3: float
+    sensor_1: float
+    sensor_2: float
+    sensor_3: float
+    sensor_4: float
+    sensor_5: float
+    sensor_6: float
+    sensor_7: float
+    sensor_8: float
+    sensor_9: float
+    sensor_10: float
+    sensor_11: float
+    sensor_12: float
+    sensor_13: float
+    sensor_14: float
+    sensor_15: float
+    sensor_16: float
+    sensor_17: float
+    sensor_18: float
+    sensor_19: float
+    sensor_20: float
+    sensor_21: float
+
+    @field_validator("*")
+    @classmethod
+    def validate_finite_readings(cls, value: Any) -> Any:
+        if isinstance(value, float) and not isfinite(value):
+            raise ValueError("Cycle readings must be finite numbers.")
+        return value
+
+
+class HistoryPredictionRequest(BaseModel):
+    history: list[CycleReading] = Field(min_length=1)
+
+    @field_validator("history")
+    @classmethod
+    def validate_cycle_sequence(cls, history: list[CycleReading]) -> list[CycleReading]:
+        cycles = sorted(reading.cycle for reading in history)
+        if len(cycles) != len(set(cycles)):
+            raise ValueError("History must contain each cycle only once.")
+        if any(current != previous + 1 for previous, current in zip(cycles, cycles[1:])):
+            raise ValueError("History cycles must be consecutive.")
+        return history
+
+
 def get_model_feature_names(model: Any) -> list[str]:
     feature_names = getattr(model, "feature_names_in_", None)
     if feature_names is not None:
@@ -134,3 +185,43 @@ def predict(payload: PredictionRequest, request: Request) -> dict:
     row = {name: float(payload.features[name]) for name in feature_names}
     prediction = model.predict(pd.DataFrame([row], columns=feature_names))[0]
     return {"predicted_rul": float(prediction)}
+
+
+@app.post("/predict/history")
+def predict_from_history(payload: HistoryPredictionRequest, request: Request) -> dict:
+    model = getattr(request.app.state, "model", None)
+    feature_names = getattr(request.app.state, "feature_names", None)
+    if model is None or feature_names is None:
+        raise HTTPException(status_code=503, detail="Model is not loaded.")
+
+    lag_fill_values = getattr(model, "lag_fill_values_", None)
+    feature_window = getattr(model, "feature_window_", None)
+    if lag_fill_values is None or feature_window is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Model is missing training preprocessing metadata. Retrain and redeploy it.",
+        )
+
+    history_rows = [reading.model_dump() for reading in payload.history]
+    history = pd.DataFrame(history_rows)
+    history["unit"] = 1
+    featured = add_engine_features(
+        history,
+        window=int(feature_window),
+        lag_fill_values=lag_fill_values,
+    )
+    latest = featured.sort_values("cycle").iloc[-1]
+    missing = sorted(set(feature_names) - set(featured.columns))
+    if missing:
+        raise HTTPException(
+            status_code=500,
+            detail={"model_features_not_generated": missing},
+        )
+
+    row = latest[feature_names].astype(float).to_frame().T
+    prediction = model.predict(row)[0]
+    return {
+        "predicted_rul": float(prediction),
+        "cycle": int(latest["cycle"]),
+        "history_cycles": len(history_rows),
+    }

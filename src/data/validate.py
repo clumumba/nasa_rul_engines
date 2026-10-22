@@ -11,7 +11,6 @@ def validate_columns(df: pd.DataFrame, expected_columns: Iterable[str]) -> None:
     if missing:
         raise ValueError(f"Missing expected columns: {missing}")
 
-
 def validate_dataframe(df: pd.DataFrame, expected_columns: Iterable[str]) -> None:
     if df.empty:
         raise ValueError("DataFrame is empty.")

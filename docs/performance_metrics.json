@@ -1,0 +1,74 @@
+{
+  "FD001": {
+    "evaluation": "official NASA test set, final cycle per engine",
+    "engine_count": 100,
+    "model": {
+      "MAE": 14.672552189826966,
+      "MSE": 384.50328605307647,
+      "RMSE": 19.608755341761917,
+      "R2": 0.7773408680927173,
+      "NASA_SCORE": 1170.6347076597851
+    },
+    "mean_training_rul_baseline": {
+      "MAE": 35.93454607144589,
+      "MSE": 1901.302467650733,
+      "RMSE": 43.603927204447224,
+      "R2": -0.10101102460239808,
+      "NASA_SCORE": 40439.31438332888
+    }
+  },
+  "FD002": {
+    "evaluation": "official NASA test set, final cycle per engine",
+    "engine_count": 259,
+    "model": {
+      "MAE": 19.827674842651746,
+      "MSE": 787.6005095563202,
+      "RMSE": 28.064221164256814,
+      "R2": 0.7276772852884947,
+      "NASA_SCORE": 8956.703831030716
+    },
+    "mean_training_rul_baseline": {
+      "MAE": 45.867315240238845,
+      "MSE": 2950.4184096031354,
+      "RMSE": 54.31775409203823,
+      "R2": -0.02014402109839275,
+      "NASA_SCORE": 171923.7305697059
+    }
+  },
+  "FD003": {
+    "evaluation": "official NASA test set, final cycle per engine",
+    "engine_count": 100,
+    "model": {
+      "MAE": 15.767048883438111,
+      "MSE": 454.9426068118704,
+      "RMSE": 21.329383648194582,
+      "R2": 0.7345102451054609,
+      "NASA_SCORE": 2379.532912528455
+    },
+    "mean_training_rul_baseline": {
+      "MAE": 38.726262135922326,
+      "MSE": 2123.020737764581,
+      "RMSE": 46.076249172047206,
+      "R2": -0.23892606861994947,
+      "NASA_SCORE": 73539.38394198065
+    }
+  },
+  "FD004": {
+    "evaluation": "official NASA test set, final cycle per engine",
+    "engine_count": 248,
+    "model": {
+      "MAE": 22.186717169419413,
+      "MSE": 869.8388792519668,
+      "RMSE": 29.49303102856617,
+      "R2": 0.7074051408260702,
+      "NASA_SCORE": 7887.04053032338
+    },
+    "mean_training_rul_baseline": {
+      "MAE": 46.990867987838115,
+      "MSE": 3050.8302840276633,
+      "RMSE": 55.23432161281302,
+      "R2": -0.026232878997418885,
+      "NASA_SCORE": 229742.6799225427
+    }
+  }
+}

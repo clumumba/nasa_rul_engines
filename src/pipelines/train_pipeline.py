@@ -14,7 +14,7 @@ from src.data.split import split_by_unit
 from src.data.validate import validate_dataframe
 from src.features.build_features import SENSOR_COLUMNS, add_engine_features, compute_rul_labels
 from src.models.baseline_xgb import fit_xgb_model, save_model, train_xgb_model
-from src.models.evaluate import compute_metrics, evaluate_last_cycle
+from src.models.evaluate import compute_metrics, compute_nasa_score, evaluate_last_cycle
 
 
 def configure_mlflow() -> None:
@@ -95,6 +95,8 @@ def run_training(dataset: str = "FD001", config_path: str = "configs/train_confi
         )
         full_train["RUL"] = compute_rul_labels(full_train, max_rul=max_rul)
         model = fit_xgb_model(full_train, target_col="RUL")
+        model.feature_window_ = feature_window
+        model.lag_fill_values_ = full_lag_fill_values
 
         test_df = load_test(dataset)
         validate_dataframe(test_df, COLUMNS)
@@ -103,15 +105,26 @@ def run_training(dataset: str = "FD001", config_path: str = "configs/train_confi
             window=feature_window,
             lag_fill_values=full_lag_fill_values,
         )
+        rul_df = load_rul(dataset)
+        test_rul = rul_df["RUL"].to_numpy(dtype=float)
         official_metrics = {
             f"official_test_{name}": value
             for name, value in evaluate_last_cycle(
                 model,
                 featured_test,
-                load_rul(dataset),
+                rul_df,
             ).items()
         }
-        metrics = {**holdout_metrics, **official_metrics}
+        baseline_prediction = float(full_train["RUL"].mean())
+        baseline_predictions = [baseline_prediction] * len(test_rul)
+        baseline_metrics = {
+            f"official_test_mean_baseline_{name}": value
+            for name, value in compute_metrics(test_rul, baseline_predictions).items()
+        }
+        baseline_metrics["official_test_mean_baseline_NASA_SCORE"] = (
+            compute_nasa_score(test_rul, baseline_predictions)
+        )
+        metrics = {**holdout_metrics, **official_metrics, **baseline_metrics}
 
         output_dir = Path(config.get("output_dir", "artifacts"))
         output_dir.mkdir(parents=True, exist_ok=True)
